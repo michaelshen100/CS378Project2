@@ -486,7 +486,16 @@ void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde )
     }
   }
   else {
-    /* Not a full row size micro-panel.  We pad with zeroes.  To be  added */
+    for (int p=0; p<k; p++) {
+        for (int i=0; i<m; i++) {
+            *Atilde = alpha(p,i);
+            Atilde++;
+        }
+        for (int i=0; i<(m-MR); i++) {
+            *Atilde = 0.0;
+            Atilde++;
+        }
+      }
   }
 }
 
@@ -532,15 +541,30 @@ void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
   if ( n == NR ) {
     /* Full column width micro-panel.*/
     for ( int p=0; p<k; p++ ) {
-      for ( int j=0; j<NR; j++ ) {
+      /*
+      for ( int j=0; j<NR; j+=4 ) {
+        __m256d asdf = _mm256_set_pd(beta(p,j), beta(p,j+1), beta(p,j+2), beta(p,j+3));
+        _mm256_storeu_pd(Btilde, asdf);
+        Btilde+=4;
+      }
+      */
+      for ( int j=0; j<NR; j++) {
         *Btilde = beta( p, j );
         Btilde++;
       }
     }
   }
   else {
-    /* Not a full row size micro-panel. We pad with zeroes.
-     To be added */
+      for (int p=0; p<k; p++) {
+          for (int j=0; j<n; j++) {
+              *Btilde = beta(p,j);
+              Btilde++;
+          }
+          for (int j=0; j<(n-NR); j++) {
+              *Btilde = 0.0;
+              Btilde++;
+          }
+      }
   }
 }
 
