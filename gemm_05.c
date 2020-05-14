@@ -12,12 +12,12 @@ void LoopOne( int, int, int, double *, double *, double *, int );
 void Gemm_MRxNRKernel_Packed( int, double *, double *, double *, int );
 void PackBlockA( int, int, double *, int, double * );
 void PackMicroPanelA_MRxKC( int , int , double *, int , double* ) ;
-void PackPanelB( int, int, double *, int, double * );
 void PackMicroPanelB_KCxNR( int , int , double *, int , double *);
+void PackPanelB( int, int, double *, int, double * );
 
 /* Blocking parameters */
 #define MC 276
-#define MR 12
+#define MR 4
 #define NC 276
 #define NR 4
 #define KC 256
@@ -155,6 +155,25 @@ void Gemm_MRxNRKernel_Packed( int k, double *A, double *B, double *C, int ldC)
   _mm256_storeu_pd( &gamma(0,3), gamma_0123_3 );
 }
 
+void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
+/* Pack a micro-panel of A into buffer pointed to by Atilde. 
+   This is an unoptimized implementation for general MR and KC. */
+{
+  /* March through A in column-major order, packing into Atilde as we go. */
+
+  if ( m == MR ) {
+    /* Full row size micro-panel.*/
+    for ( int p=0; p<k; p++ ) 
+      for ( int i=0; i<MR; i++ ) {
+        *Atilde = alpha( i, p );
+        Atilde++;
+      }
+  }
+  else {
+    /* Not a full row size micro-panel.  We pad with zeroes.  To be  added */
+  }
+}
+
 /* Pack a MC x KC block of A into Atilde */
 void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
 {
@@ -167,34 +186,6 @@ void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
   }
 }
 
-void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde ) 
-/* Pack a micro-panel of A into buffer pointed to by Atilde. 
-   This is an unoptimized implementation for general MR and KC. */
-{
-  /* March through A in column-major order, packing into Atilde as we go. */
-
-  if ( m == MR ) {
-    /* Full row size micro-panel.*/
-    for ( int p=0; p<k; p++ ) 
-      for ( int i=0; i<MR; i++ ) 
-        *Atilde++ = alpha( i, p );
-  }
-  else {
-    /* Not a full row size micro-panel.  We pad with zeroes.  To be  added */
-  }
-}
-
-
-/* Pack a KC x NC block of B into Btilde */
-void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
-{
-  for ( int j=0; j<n; j+= NR ){
-    int jb = dmin( NR, n-j );
-    
-    PackMicroPanelB_KCxNR( k, jb, &beta( 0, j ), ldB, Btilde );
-    Btilde += k * jb;
-  }
-}
 
 void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
 	    double *Btilde )
@@ -207,11 +198,24 @@ void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
   if ( n == NR ) {
     /* Full column width micro-panel.*/
     for ( int p=0; p<k; p++ )
-      for ( int j=0; j<NR; j++ )
-        *Btilde++ = beta( p, j );
+      for ( int j=0; j<NR; j++ ) {
+        *Btilde = beta( p, j );
+        Btilde++;
+      }
   }
   else {
     /* Not a full row size micro-panel. We pad with zeroes.
      To be added */
+  }
+}
+
+/* Pack a KC x NC block of B into Btilde */
+void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
+{
+  for ( int j=0; j<n; j+= NR ){
+    int jb = dmin( NR, n-j );
+    
+    PackMicroPanelB_KCxNR( k, jb, &beta( 0, j ), ldB, Btilde );
+    Btilde += k * jb;
   }
 }
