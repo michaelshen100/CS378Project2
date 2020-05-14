@@ -23,8 +23,8 @@ void PackPanelB( int, int, double *, int, double * );
 #define KC 256
   
 /* Wrapper for GEMM function */
-void MyGemm( int m, int n, int k, double *A, int ldA,
-	     double *B, int ldB, double *C, int ldC )
+void MyGemm( int m, int n, int k, double *restrict A, int ldA,
+	     double *restrict B, int ldB, double *restrict C, int ldC )
 {
 
   if (MC == -1 || MR == -1 || NC == -1 || NR == -1 || KC == -1 )
