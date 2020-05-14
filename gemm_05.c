@@ -123,9 +123,74 @@ void Gemm_MRxNRKernel_Packed( int k, double *A, double *B, double *C, int ldC)
 
   __m256d beta_p_j;
    	
-  for ( int p=0; p<k; p++ ){
+  for ( int p=0; p<k; p+=4 ){
     /* load alpha( 0:3, p ) */
     __m256d alpha_0123_p = _mm256_loadu_pd( A );
+
+    /* load beta( p, 0 ); update gamma( 0:3, 0 ) */
+    beta_p_j = _mm256_broadcast_sd( B );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_0 );
+
+    /* load beta( p, 1 ); update gamma( 0:3, 1 ) */
+    beta_p_j = _mm256_broadcast_sd( B+1 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_1 );
+
+    /* load beta( p, 2 ); update gamma( 0:3, 2 ) */
+    beta_p_j = _mm256_broadcast_sd( B+2 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_2 );
+
+    /* load beta( p, 3 ); update gamma( 0:3, 3 ) */
+    beta_p_j = _mm256_broadcast_sd( B+3 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_3 );
+
+    A += MR;
+    B += NR;
+
+
+    /* load alpha( 0:3, p ) */
+    alpha_0123_p = _mm256_loadu_pd( A );
+
+    /* load beta( p, 0 ); update gamma( 0:3, 0 ) */
+    beta_p_j = _mm256_broadcast_sd( B );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_0 );
+
+    /* load beta( p, 1 ); update gamma( 0:3, 1 ) */
+    beta_p_j = _mm256_broadcast_sd( B+1 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_1 );
+
+    /* load beta( p, 2 ); update gamma( 0:3, 2 ) */
+    beta_p_j = _mm256_broadcast_sd( B+2 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_2 );
+
+    /* load beta( p, 3 ); update gamma( 0:3, 3 ) */
+    beta_p_j = _mm256_broadcast_sd( B+3 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_3 );
+
+    A += MR;
+    B += NR;
+
+    alpha_0123_p = _mm256_loadu_pd( A );
+
+    /* load beta( p, 0 ); update gamma( 0:3, 0 ) */
+    beta_p_j = _mm256_broadcast_sd( B );
+    gamma_0123_0 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_0 );
+
+    /* load beta( p, 1 ); update gamma( 0:3, 1 ) */
+    beta_p_j = _mm256_broadcast_sd( B+1 );
+    gamma_0123_1 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_1 );
+
+    /* load beta( p, 2 ); update gamma( 0:3, 2 ) */
+    beta_p_j = _mm256_broadcast_sd( B+2 );
+    gamma_0123_2 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_2 );
+
+    /* load beta( p, 3 ); update gamma( 0:3, 3 ) */
+    beta_p_j = _mm256_broadcast_sd( B+3 );
+    gamma_0123_3 = _mm256_fmadd_pd( alpha_0123_p, beta_p_j, gamma_0123_3 );
+
+    A += MR;
+    B += NR;
+
+    alpha_0123_p = _mm256_loadu_pd( A );
 
     /* load beta( p, 0 ); update gamma( 0:3, 0 ) */
     beta_p_j = _mm256_broadcast_sd( B );
@@ -163,11 +228,12 @@ void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde )
 
   if ( m == MR ) {
     /* Full row size micro-panel.*/
-    for ( int p=0; p<k; p++ ) 
+    for ( int p=0; p<k; p++ ) {
       for ( int i=0; i<MR; i++ ) {
         *Atilde = alpha( i, p );
         Atilde++;
       }
+    }
   }
   else {
     /* Not a full row size micro-panel.  We pad with zeroes.  To be  added */
@@ -177,11 +243,29 @@ void PackMicroPanelA_MRxKC( int m, int k, double *A, int ldA, double *Atilde )
 /* Pack a MC x KC block of A into Atilde */
 void PackBlockA( int m, int k, double *A, int ldA, double *Atilde )
 {
-  for ( int i=0; i<m; i+= MR ){
+  for ( int i=0; i<m; i+= MR*4 ){
    int ib = dmin( MR, m-i );
 
 
     PackMicroPanelA_MRxKC( ib, k, &alpha( i, 0 ), ldA, Atilde );
+    Atilde += ib * k;
+
+    ib = dmin( MR, m-(i+MR) );
+
+
+    PackMicroPanelA_MRxKC( ib, k, &alpha( i+MR, 0 ), ldA, Atilde );
+    Atilde += ib * k;
+
+    ib = dmin( MR, m-(i+(MR*2)) );
+
+
+    PackMicroPanelA_MRxKC( ib, k, &alpha( i+(MR*2), 0 ), ldA, Atilde );
+    Atilde += ib * k;
+
+    ib = dmin( MR, m-(i+(MR*3)) );
+
+
+    PackMicroPanelA_MRxKC( ib, k, &alpha( i+(MR*3), 0 ), ldA, Atilde );
     Atilde += ib * k;
   }
 }
@@ -197,11 +281,12 @@ void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
   /* March through B in row-major order, packing into Btilde. */
   if ( n == NR ) {
     /* Full column width micro-panel.*/
-    for ( int p=0; p<k; p++ )
+    for ( int p=0; p<k; p++ ) {
       for ( int j=0; j<NR; j++ ) {
         *Btilde = beta( p, j );
         Btilde++;
       }
+    }
   }
   else {
     /* Not a full row size micro-panel. We pad with zeroes.
@@ -212,10 +297,25 @@ void PackMicroPanelB_KCxNR( int k, int n, double *B, int ldB,
 /* Pack a KC x NC block of B into Btilde */
 void PackPanelB( int k, int n, double *B, int ldB, double *Btilde )
 {
-  for ( int j=0; j<n; j+= NR ){
+  for ( int j=0; j<n; j+= NR*4 ){
     int jb = dmin( NR, n-j );
     
     PackMicroPanelB_KCxNR( k, jb, &beta( 0, j ), ldB, Btilde );
+    Btilde += k * jb;
+
+    jb = dmin( NR, n-(j+NR) );
+    
+    PackMicroPanelB_KCxNR( k, jb, &beta( 0, j+NR ), ldB, Btilde );
+    Btilde += k * jb;
+
+    jb = dmin( NR, n-(j+(NR*2)) );
+    
+    PackMicroPanelB_KCxNR( k, jb, &beta( 0, j+(NR*2) ), ldB, Btilde );
+    Btilde += k * jb;
+
+    jb = dmin( NR, n-(j+(NR*3)) );
+    
+    PackMicroPanelB_KCxNR( k, jb, &beta( 0, j+(NR*3) ), ldB, Btilde );
     Btilde += k * jb;
   }
 }
